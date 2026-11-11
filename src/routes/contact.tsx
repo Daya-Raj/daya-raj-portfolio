@@ -1,4 +1,3 @@
-
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowUpRight, MapPin, Mail } from "lucide-react";
 import { useState, type FormEvent } from "react";
@@ -58,6 +57,7 @@ function Contact() {
       email: g("email"),
       subject: g("subject"),
       message: g("message"),
+      hpField: g("hpField"), // Read honeypot value
     };
 
     const er: Errors = {};
@@ -81,21 +81,24 @@ function Contact() {
     setIsSending(true);
     setStatus("Sending message...");
 
+    const apiUrl =
+  (import.meta.env["VITE_API_BASE_URL"] as string | undefined) ||
+  "http://localhost:8081";
     try {
-      const response = await fetch(
-        "https://daya-raj-portfolio-production.up.railway.app/api/contact",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(v),
-        }
-      );
+      const response = await fetch(`${apiUrl}/api/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(v),
+      });
 
       const result = await response.json();
 
-      if (!response.ok || result.success === false) {
+      if (!response.ok) {
+        if (result.errors) {
+          throw new Error(Object.values(result.errors).join(", "));
+        }
         throw new Error(
           result.message || "Unable to send your message. Please try again."
         );
@@ -113,7 +116,7 @@ function Contact() {
       setStatus(
         error instanceof Error && error.message !== "Failed to fetch"
           ? error.message
-          : "Unable to reach the server. Please try again later or contact me through LinkedIn."
+          : "Unable to reach the server. Please check your backend connection."
       );
     } finally {
       setIsSending(false);
@@ -185,6 +188,17 @@ function Contact() {
             noValidate
             className="space-y-5 rounded-2xl border border-on-dark/10 p-6 md:p-8"
           >
+            {/* Hidden honeypot field for bot filtering */}
+            <input
+              type="text"
+              name="hpField"
+              defaultValue=""
+              tabIndex={-1}
+              autoComplete="off"
+              style={{ display: "none" }}
+              aria-hidden="true"
+            />
+
             {(
               [
                 ["name", "Full Name", "text"],
