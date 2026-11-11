@@ -1,16 +1,11 @@
 package com.dayaraj.portfolio.entity;
 
 import jakarta.persistence.*;
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "contact_messages", indexes = {
-        @Index(name = "idx_contact_created_at", columnList = "created_at"),
-        @Index(name = "idx_contact_email_status", columnList = "email_status")
-})
+@Table(name = "contact_messages")
 public class ContactMessage {
-
-    public enum EmailStatus { PENDING, SENT, FAILED, NOT_CONFIGURED }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,23 +14,20 @@ public class ContactMessage {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false, length = 254)
+    @Column(nullable = false)
     private String email;
 
-    @Column(nullable = false, length = 150)
+    @Column(length = 200)
     private String subject;
 
-    @Column(nullable = false, length = 5000)
+    @Column(nullable = false, length = 3000)
     private String message;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    private LocalDateTime createdAt;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "email_status", nullable = false, length = 20)
-    private EmailStatus emailStatus = EmailStatus.PENDING;
-
-    protected ContactMessage() {}
+    public ContactMessage() {
+    }
 
     public ContactMessage(String name, String email, String subject, String message) {
         this.name = name;
@@ -45,17 +37,26 @@ public class ContactMessage {
     }
 
     @PrePersist
-    void onCreate() {
-        if (createdAt == null) createdAt = Instant.now();
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
     }
 
+    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
     public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
     public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
     public String getSubject() { return subject; }
+    public void setSubject(String subject) { this.subject = subject; }
+
     public String getMessage() { return message; }
-    public Instant getCreatedAt() { return createdAt; }
-    public EmailStatus getEmailStatus() { return emailStatus; }
-    public void setEmailStatus(EmailStatus emailStatus) { this.emailStatus = emailStatus; }
-}
+    public void setMessage(String message) { this.message = message; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+}   
