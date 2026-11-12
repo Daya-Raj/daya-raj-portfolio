@@ -11,7 +11,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/contact")
-@CrossOrigin(origins = "http://localhost:8080")
 public class ContactController {
 
     private final ContactService contactService;
@@ -23,6 +22,6 @@ public class ContactController {
     @PostMapping
     public ResponseEntity<?> submitContactForm(@Valid @RequestBody ContactRequestDTO request) {
         contactService.processContactMessage(request);
-        return new ResponseEntity<>(Map.of("message", "Your message has been sent successfully!"), HttpStatus.CREATED);
+        return new ResponseEntity(Map.of("message", "Your message has been sent successfully!"), HttpStatus.CREATED);
     }
 }
