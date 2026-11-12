@@ -1,47 +1,72 @@
 package com.dayaraj.portfolio.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailService {
 
-    private final JavaMailSender mailSender;
-
     @Value("${portfolio.admin.email:default@example.com}")
     private String adminEmail;
 
-    @Value("${spring.mail.username:default@example.com}")
-    private String fromEmail;
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    @Value("${RESEND_API_KEY:}")
+    private String resendApiKey;
+
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Async
     public void sendContactNotification(String senderName, String senderEmail, String subject, String messageText) {
         try {
-            SimpleMailMessage mail = new SimpleMailMessage();
-            mail.setFrom(fromEmail);
-            mail.setTo(adminEmail);
-            mail.setReplyTo(senderEmail); // Allows you to hit 'Reply' in your email client directly to the visitor
-            mail.setSubject("New Portfolio Message: " + (subject != null ? subject : "No Subject"));
+            if (resendApiKey == null || resendApiKey.isBlank()) {
+                System.err.println("Failed to dispatch email alert: RESEND_API_KEY is not configured.");
+                return;
+            }
 
+            String emailSubject = "New Portfolio Message: " + (subject != null ? subject : "No Subject");
             String body = String.format(
                     "You received a new message from your portfolio contact form:\n\n" +
-                            "Name: %s\n" +
-                            "Email: %s\n" +
-                            "Subject: %s\n\n" +
-                            "Message:\n%s\n",
+                    "Name: %s\n" +
+                    "Email: %s\n" +
+                    "Subject: %s\n\n" +
+                    "Message:\n%s\n",
                     senderName, senderEmail, subject, messageText
             );
 
-            mail.setText(body);
-            mailSender.send(mail);
+            Map<String, Object> payload = Map.of(
+                    "from", "Portfolio Contact <onboarding@resend.dev>",
+                    "to", List.of(adminEmail),
+                    "reply_to", senderEmail,
+                    "subject", emailSubject,
+                    "text", body
+            );
+
+            String jsonBody = objectMapper.writeValueAsString(payload);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.resend.com/emails"))
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 400) {
+                System.err.println("Failed to dispatch email alert (HTTP " + response.statusCode() + "): " + response.body());
+            } else {
+                System.out.println("Email alert dispatched successfully: " + response.body());
+            }
         } catch (Exception e) {
-            // Log the error so email failures don't crash the user response or roll back DB save
             System.err.println("Failed to dispatch email alert: " + e.getMessage());
         }
     }
